@@ -1,2 +1,35 @@
-# Summarize-and-Chat-with-PDF
-A Python project for summarizing and chatting with PDF documents using a locally hosted LLM.
+# Summarize-and-Chat-with-PDF  - AI-Powered Document Processing
+
+![PDF Analyzer Screenshot](screenshot.png)
+
+A web application that uses locally hosted LLMs to summarize PDF documents and enable interactive Q&A about their content. Built with Python, Flask, and Socket.IO for real-time updates.
+
+## Features
+
+- **PDF Summarization**: Generate comprehensive, executive, technical, or bullet-point summaries
+- **Document Q&A**: Ask questions about PDF content and get AI-powered answers
+- **Local Processing**: Works with locally hosted LLMs (like Mistral) for privacy
+- **Session Management**: Save and revisit document processing sessions
+- **Real-time Progress**: Track processing with live updates
+- **Statistics Dashboard**: View document metrics and compression ratios
+
+## Technology Stack
+
+- **Backend**: Python, Flask, Socket.IO
+- **Frontend**: HTML5, CSS3, JavaScript
+- **AI Processing**: Local LLM integration (Ollama compatible)
+- **Database**: SQLite for session storage
+- **Text Processing**: pdfplumber, FAISS for vector search
+
+## Getting Started
+
+### Prerequisites
+- Python 3.12+
+- Ollama with Mistral (or other local LLM)
+- Node.js (for Socket.IO client)
+
+### Installation
+```bash
+git clone https://github.com/yourusername/pdf-analyzer.git
+cd pdf-analyzer
+pip install -r requirements.txt
