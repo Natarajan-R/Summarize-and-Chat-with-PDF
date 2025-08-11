@@ -38,13 +38,13 @@ A web application that uses locally hosted LLMs to summarize PDF documents and e
 git clone https://github.com/Natarajan-R/Summarize-and-Chat-with-PDF.git
 cd Summarize-and-Chat-with-PDF
 pip install -r requirements.txt
-'''
+```
 ### Running
 ```bash
 python app.py
 
 Open http://localhost:5000 in your browser
-'''
+```
 
 ### Configuration
 Edit app.py to:
