@@ -2,7 +2,10 @@
 
 # AI-Powered Document Processing
 
-![PDF Analyzer Screenshot](screenshot.png)
+<img width="1849" height="1007" alt="Screenshot from 2025-08-11 13-06-44" src="https://github.com/user-attachments/assets/e9adc757-b2f0-4e9c-b2c2-9cb2aa3861a4" />
+
+
+
 
 A web application that uses locally hosted LLMs to summarize PDF documents and enable interactive Q&A about their content. Built with Python, Flask, and Socket.IO for real-time updates.
 
