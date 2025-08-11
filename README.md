@@ -30,6 +30,6 @@ A web application that uses locally hosted LLMs to summarize PDF documents and e
 
 ### Installation
 ```bash
-git clone https://github.com/yourusername/pdf-analyzer.git
-cd pdf-analyzer
+git clone https://github.com/Natarajan-R/Summarize-and-Chat-with-PDF.git
+cd Summarize-and-Chat-with-PDF
 pip install -r requirements.txt
