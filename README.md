@@ -1,6 +1,6 @@
 # Summarize-and-Chat-with-PDF   
 
-AI-Powered Document Processing
+# AI-Powered Document Processing
 
 ![PDF Analyzer Screenshot](screenshot.png)
 
