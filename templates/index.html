@@ -1,0 +1,1397 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PDF Analyzer - AI-Powered Document Processing</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.7.2/socket.io.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            color: #333;
+        }
+
+        .container {
+            max-width: 1600px;
+            margin: 0 auto;
+            padding: 20px;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 20px;
+            color: white;
+            flex-shrink: 0;
+        }
+
+        .header h1 {
+            font-size: 2.5em;
+            margin-bottom: 10px;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+        }
+
+        .debug-panel {
+            background: white;
+            border-radius: 10px;
+            padding: 15px;
+            margin-bottom: 15px;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+            display: none;
+            flex-shrink: 0;
+        }
+
+        .debug-content {
+            background: #f8f9fa;
+            padding: 10px;
+            border-radius: 5px;
+            font-family: monospace;
+            font-size: 12px;
+            max-height: 150px;
+            overflow-y: auto;
+        }
+
+        /* Main Layout */
+        .main-layout {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            flex: 1;
+            min-height: 0;
+        }
+
+        /* Left Column - Navigation and Main Sections */
+        .left-column {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+            overflow-y: auto;
+            padding-right: 10px;
+        }
+
+        /* Right Column - Q&A Section */
+        .right-column {
+            background: white;
+            border-radius: 15px;
+            padding: 30px;
+            box-shadow: 0 15px 35px rgba(0,0,0,0.1);
+            display: flex;
+            flex-direction: column;
+            min-height: 0;
+        }
+
+        .section-panel {
+            background: white;
+            border-radius: 15px;
+            padding: 25px;
+            box-shadow: 0 15px 35px rgba(0,0,0,0.1);
+            flex-shrink: 0;
+        }
+
+        .section-title {
+            font-size: 1.4em;
+            font-weight: 600;
+            margin-bottom: 20px;
+            color: #333;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .current-session-indicator {
+            font-size: 0.9em;
+            font-weight: 400;
+            color: #667eea;
+            margin-top: 8px;
+            padding: 8px 12px;
+            background: rgba(102, 126, 234, 0.1);
+            border-radius: 6px;
+            border-left: 3px solid #667eea;
+        }
+
+        .session-item.active {
+            background: #667eea;
+            color: white;
+            border-left: 4px solid #764ba2;
+        }
+
+        .session-item.active .session-date {
+            color: #e8eaff;
+        }
+
+        /* Upload Section */
+        .upload-section {
+            border: 3px dashed #ddd;
+            border-radius: 10px;
+            padding: 30px;
+            text-align: center;
+            transition: border-color 0.3s ease;
+            margin-bottom: 20px;
+        }
+
+        .upload-section:hover {
+            border-color: #667eea;
+        }
+
+        .upload-section.dragover {
+            border-color: #764ba2;
+            background-color: #f8f9ff;
+        }
+
+        .file-input {
+            display: none;
+        }
+
+        .upload-btn {
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            color: white;
+            border: none;
+            padding: 12px 25px;
+            font-size: 14px;
+            border-radius: 25px;
+            cursor: pointer;
+            transition: transform 0.2s ease;
+        }
+
+        .upload-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+        }
+
+        .upload-btn:disabled {
+            background: #6c757d;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .file-info {
+            margin-top: 15px;
+            padding: 12px;
+            background: #f8f9fa;
+            border-radius: 8px;
+            display: none;
+            font-size: 14px;
+        }
+
+        /* Process Section */
+        .process-controls {
+            display: flex;
+            gap: 15px;
+            align-items: center;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+        }
+
+        .summary-select {
+            padding: 8px 12px;
+            border: 2px solid #ddd;
+            border-radius: 5px;
+            font-size: 14px;
+            flex: 1;
+            min-width: 150px;
+        }
+
+        .process-btn {
+            background: #28a745;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: background 0.3s ease;
+            white-space: nowrap;
+        }
+
+        .process-btn:hover {
+            background: #218838;
+        }
+
+        .process-btn:disabled {
+            background: #6c757d;
+            cursor: not-allowed;
+        }
+
+        .progress-section {
+            display: none;
+        }
+
+        .progress-bar {
+            width: 100%;
+            height: 15px;
+            background: #e9ecef;
+            border-radius: 10px;
+            overflow: hidden;
+            margin-bottom: 8px;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #28a745, #20c997);
+            width: 0%;
+            transition: width 0.3s ease;
+            border-radius: 10px;
+        }
+
+        .progress-text {
+            font-size: 12px;
+            color: #666;
+            text-align: center;
+            margin-bottom: 5px;
+        }
+
+        .status-message {
+            padding: 8px;
+            border-radius: 5px;
+            font-weight: 500;
+            font-size: 14px;
+        }
+
+        .status-processing {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+
+        .status-error {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+
+        .status-success {
+            background: #d1ecf1;
+            color: #0c5460;
+            border: 1px solid #bee5eb;
+        }
+
+        /* Results/Statistics Section */
+        .result-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+        }
+
+        .result-title {
+            font-size: 16px;
+            font-weight: 600;
+            color: #333;
+        }
+
+        .download-btn {
+            background: #007bff;
+            color: white;
+            text-decoration: none;
+            padding: 6px 12px;
+            border-radius: 4px;
+            font-size: 12px;
+            transition: background 0.3s ease;
+        }
+
+        .download-btn:hover {
+            background: #0056b3;
+            text-decoration: none;
+            color: white;
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+            gap: 10px;
+        }
+
+        .stat-item {
+            background: #f8f9fa;
+            padding: 12px;
+            border-radius: 6px;
+            text-align: center;
+        }
+
+        .stat-label {
+            font-size: 11px;
+            color: #666;
+            margin-bottom: 5px;
+        }
+
+        .stat-value {
+            font-size: 16px;
+            font-weight: 600;
+            color: #333;
+        }
+
+        /* Sessions Section */
+        .sessions-list {
+            max-height: 300px;
+            overflow-y: auto;
+        }
+
+        .session-item {
+            background: #f8f9fa;
+            padding: 12px;
+            margin-bottom: 8px;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: background 0.3s ease;
+            font-size: 14px;
+        }
+
+        .session-item:hover {
+            background: #e9ecef;
+        }
+
+        .session-item.active {
+            background: #667eea;
+            color: white;
+        }
+
+        .session-name {
+            font-weight: 600;
+            margin-bottom: 3px;
+        }
+
+        .session-date {
+            font-size: 11px;
+            color: #666;
+        }
+
+        .session-item.active .session-date {
+            color: #ddd;
+        }
+
+        /* Q&A Section - Right Column */
+        .qa-section {
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            min-height: 0;
+        }
+
+        .qa-input-group {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+            flex-shrink: 0;
+        }
+
+        .qa-input {
+            flex: 1;
+            padding: 12px;
+            border: 2px solid #ddd;
+            border-radius: 6px;
+            font-size: 16px;
+        }
+
+        .qa-btn {
+            background: #17a2b8;
+            color: white;
+            border: none;
+            padding: 12px 20px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 16px;
+            white-space: nowrap;
+        }
+
+        .qa-btn:hover {
+            background: #138496;
+        }
+
+        .qa-btn:disabled {
+            background: #6c757d;
+            cursor: not-allowed;
+        }
+
+        .qa-history {
+            flex: 1;
+            overflow-y: auto;
+            min-height: 0;
+            padding-right: 10px;
+        }
+
+        .qa-item {
+            background: #f8f9fa;
+            margin-bottom: 15px;
+            padding: 15px;
+            border-radius: 8px;
+            border-left: 4px solid #17a2b8;
+        }
+
+        .qa-question {
+            font-weight: 600;
+            color: #495057;
+            margin-bottom: 8px;
+        }
+
+        .qa-answer {
+            color: #6c757d;
+            line-height: 1.5;
+            margin-bottom: 8px;
+        }
+
+        .qa-confidence {
+            font-size: 12px;
+            color: #28a745;
+        }
+
+        .qa-placeholder {
+            text-align: center;
+            color: #6c757d;
+            padding: 60px 20px;
+            background: #f8f9fa;
+            border-radius: 10px;
+            border: 2px dashed #ddd;
+        }
+
+        .qa-placeholder h3 {
+            margin-bottom: 15px;
+            color: #495057;
+        }
+
+        /* Utility Classes */
+        .loading {
+            display: inline-block;
+            width: 16px;
+            height: 16px;
+            border: 2px solid #f3f3f3;
+            border-top: 2px solid #667eea;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .alert {
+            padding: 12px;
+            margin: 10px 0;
+            border-radius: 6px;
+            font-weight: 500;
+            font-size: 14px;
+        }
+
+        .alert-danger {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+
+        .alert-success {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+
+        .alert-info {
+            background: #d1ecf1;
+            color: #0c5460;
+            border: 1px solid #bee5eb;
+        }
+
+        /* Hidden sections */
+        .hidden {
+            display: none !important;
+        }
+
+        /* Responsive Design */
+        @media (max-width: 1200px) {
+            .main-layout {
+                grid-template-columns: 1fr;
+                gap: 20px;
+            }
+            
+            .right-column {
+                order: -1;
+                min-height: 400px;
+            }
+        }
+
+        @media (max-width: 768px) {
+            .container {
+                padding: 10px;
+            }
+            
+            .section-panel {
+                padding: 20px;
+            }
+            
+            .process-controls {
+                flex-direction: column;
+                align-items: stretch;
+            }
+            
+            .qa-input-group {
+                flex-direction: column;
+            }
+            
+            .stats-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
+        }
+
+        @media (max-width: 480px) {
+            .header h1 {
+                font-size: 2em;
+            }
+            
+            .stats-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>PDF Analyzer</h1>
+            <p>AI-Powered Document Processing & Question Answering - Secure with Local LLM</p>
+            <!--
+            <button onclick="toggleDebug()" style="margin-top: 10px; padding: 5px 10px; background: rgba(255,255,255,0.2); color: white; border: none; border-radius: 5px; cursor: pointer;">Toggle Debug</button>
+            -->
+        </div>
+
+        <div class="debug-panel" id="debugPanel">
+            <h3>Debug Information</h3>
+            <div class="debug-content" id="debugContent">
+                <div>Waiting for events...</div>
+            </div>
+        </div>
+
+        <div class="main-layout">
+            <!-- Left Column - Navigation and Main Sections -->
+            <div class="left-column">
+
+                <!-- Previous Sessions Section -->
+                <div class="section-panel">
+                    <div class="section-title">Previous Sessions</div>
+                    <div class="sessions-list" id="sessionsList">
+                        <div class="alert alert-info">
+                            Loading sessions...
+                        </div>
+                    </div>
+                </div>
+
+                <!-- File Upload Section -->
+                <div class="section-panel">
+                    <div class="section-title">Upload Document</div>
+                    <div class="upload-section" id="uploadSection">
+                        <div id="uploadPrompt">
+                            <p style="color: #666; margin: 10px 0;">Drag & drop a PDF file here or click to browse</p>
+                            <button class="upload-btn" id="uploadBtn" onclick="document.getElementById('fileInput').click()">
+                                Choose File
+                            </button>
+                        </div>
+                        <input type="file" id="fileInput" class="file-input" accept=".pdf">
+                        
+                        <div class="file-info" id="fileInfo">
+                            <h4 id="fileName"></h4>
+                            <p id="fileDetails"></p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Process Section -->
+                <div class="section-panel hidden" id="processPanel">
+                    <div class="section-title">Process Document</div>
+                    <div class="process-controls">
+                        <select class="summary-select" id="summaryType">
+                            <option value="comprehensive">Comprehensive</option>
+                            <option value="executive">Executive Summary</option>
+                            <option value="technical">Technical</option>
+                            <option value="bullet_points">Bullet Points</option>
+                        </select>
+                        <button class="process-btn" id="processBtn" onclick="startProcessing()">
+                            Process
+                        </button>
+                    </div>
+
+                    <div class="progress-section" id="progressSection">
+                        <div class="progress-bar">
+                            <div class="progress-fill" id="progressFill"></div>
+                        </div>
+                        <div class="progress-text" id="progressText">0%</div>
+                        <div class="status-message" id="statusMessage"></div>
+                    </div>
+                </div>
+
+                <!-- Statistics Section -->
+                <div class="section-panel hidden" id="statsPanel">
+                    <div class="section-title">Document Statistics</div>
+                    <div class="result-header">
+                        <div class="result-title">Processing Complete</div>
+                        <a href="#" class="download-btn" id="downloadBtn" style="display: none;">
+                            Download
+                        </a>
+                    </div>
+                    <div class="stats-grid" id="statsGrid"></div>
+                </div>
+
+            </div>
+
+            <!-- Right Column - Q&A Section -->
+            <div class="right-column">
+                <div class="qa-section" id="qaSection">
+                    <div class="section-title">
+                        Ask Questions
+                        <div id="currentSessionIndicator" class="current-session-indicator hidden">
+                            <span id="currentDocumentName">No document selected</span>
+                        </div>
+                    </div>
+                    
+                    <div id="qaPlaceholder" class="qa-placeholder">
+                        <h3>Ready for Questions!</h3>
+                        <p>Upload and process a PDF document or select a previous session to start asking questions about the content.</p>
+                    </div>
+                    
+                    <div id="qaActive" class="hidden" style="display: flex; flex-direction: column; height: 100%; min-height: 0;">
+                        <div class="qa-input-group">
+                            <input type="text" class="qa-input" id="questionInput" 
+                                   placeholder="Ask any question about the document content..."
+                                   onkeypress="handleQuestionKeyPress(event)">
+                            <button class="qa-btn" onclick="askQuestion()" id="askBtn">Ask</button>
+                        </div>
+                        <div class="qa-history" id="qaHistory"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Global variables
+        let socket;
+        let currentTaskId = null;
+        let currentSessionId = null;
+        let uploadedFilePath = null;
+        let debugMode = false;
+
+        // Debug functions
+        function toggleDebug() {
+            debugMode = !debugMode;
+            const debugPanel = document.getElementById('debugPanel');
+            debugPanel.style.display = debugMode ? 'block' : 'none';
+        }
+
+        function logDebug(message, data = null) {
+            if (!debugMode) return;
+            
+            const debugContent = document.getElementById('debugContent');
+            const timestamp = new Date().toLocaleTimeString();
+            const logEntry = document.createElement('div');
+            logEntry.style.marginBottom = '5px';
+            logEntry.innerHTML = `<strong>${timestamp}:</strong> ${message}${data ? ' - ' + JSON.stringify(data, null, 2) : ''}`;
+            
+            debugContent.insertBefore(logEntry, debugContent.firstChild);
+            
+            // Keep only last 50 entries
+            while (debugContent.children.length > 50) {
+                debugContent.removeChild(debugContent.lastChild);
+            }
+        }
+
+        // Socket connection handling
+        function initSocket() {
+            logDebug('Initializing socket connection...');
+            
+            try {
+                socket = io({
+                    transports: ['websocket', 'polling'],
+                    timeout: 20000,
+                    reconnection: true,
+                    reconnectionDelay: 1000,
+                    reconnectionAttempts: 5
+                });
+                
+                socket.on('connect', function() {
+                    logDebug('Socket connected successfully', { socketId: socket.id });
+                    console.log('Connected to server');
+                    showAlert('Connected to PDF Analyzer', 'success');
+                });
+
+                socket.on('progress_update', function(data) {
+                    logDebug('Progress update received', data);
+                    console.log('Progress update:', data);
+                    if (data.task_id === currentTaskId) {
+                        updateProgress(data.progress, data.message);
+                    }
+                });
+
+                socket.on('processing_complete', function(data) {
+                    logDebug('Processing complete received', data);
+                    console.log('Processing complete:', data);
+                    if (data.task_id === currentTaskId || (data.result && data.result.session_id)) {
+                        handleProcessingComplete(data);
+                    }
+                });
+
+                socket.on('joined_task', function(data) {
+                    logDebug('Joined task room', data);
+                    console.log('Joined task room:', data);
+                });
+
+                socket.on('disconnect', function(reason) {
+                    logDebug('Socket disconnected', { reason });
+                    console.log('Disconnected from server:', reason);
+                    showAlert('Disconnected from server: ' + reason, 'danger');
+                });
+
+                socket.on('connect_error', function(error) {
+                    logDebug('Socket connection error', { error: error.message });
+                    console.error('Connection Error:', error);
+                    showAlert('Connection error: ' + error.message, 'danger');
+                });
+
+                socket.on('error', function(error) {
+                    logDebug('Socket error', { error });
+                    console.error('Socket Error:', error);
+                    showAlert('Socket error: ' + error, 'danger');
+                });
+
+                // Connection status monitoring
+                socket.on('connect_error', function() {
+                    setTimeout(() => {
+                        if (!socket.connected) {
+                            showAlert('Trying to reconnect...', 'info');
+                        }
+                    }, 3000);
+                });
+
+            } catch (error) {
+                logDebug('Socket initialization failed', { error: error.message });
+                console.error('Failed to initialize socket:', error);
+                showAlert('Failed to initialize connection: ' + error.message, 'danger');
+            }
+        }
+
+        function setupFileUpload() {
+            const fileInput = document.getElementById('fileInput');
+            const uploadSection = document.getElementById('uploadSection');
+
+            // Properly handle file selection
+            fileInput.addEventListener('change', function(e) {
+                if (this.files && this.files.length > 0) {
+                    handleFile(this.files[0]);
+                }
+            });
+
+            // Drag and drop
+            uploadSection.addEventListener('dragover', function(e) {
+                e.preventDefault();
+                uploadSection.classList.add('dragover');
+            });
+
+            uploadSection.addEventListener('dragleave', function(e) {
+                e.preventDefault();
+                uploadSection.classList.remove('dragover');
+            });
+
+            uploadSection.addEventListener('drop', function(e) {
+                e.preventDefault();
+                uploadSection.classList.remove('dragover');
+                
+                if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+                    handleFile(e.dataTransfer.files[0]);
+                }
+            });
+        }
+
+        function handleFile(file) {
+            logDebug('File selected', { name: file.name, size: file.size });
+            
+            if (!file.name.toLowerCase().endsWith('.pdf')) {
+                showAlert('Please select a PDF file.', 'danger');
+                return;
+            }
+
+            if (file.size > 100 * 1024 * 1024) { // 100MB
+                showAlert('File size must be less than 100MB.', 'danger');
+                return;
+            }
+
+            // Show file info
+            document.getElementById('fileName').textContent = file.name;
+            document.getElementById('fileDetails').textContent = 
+                `Size: ${formatFileSize(file.size)} | Type: PDF`;
+            document.getElementById('fileInfo').style.display = 'block';
+            
+            // Upload file
+            uploadFile(file);
+        }
+
+        function uploadFile(file) {
+            logDebug('Starting file upload', { name: file.name });
+            
+            const formData = new FormData();
+            formData.append('file', file);
+
+            const uploadBtn = document.getElementById('uploadBtn');
+            uploadBtn.disabled = true;
+            uploadBtn.innerHTML = '<div class="loading"></div> Uploading...';
+
+            fetch('/upload', {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                return response.json();
+            })
+            .then(data => {
+                if (!data.success) {
+                    throw new Error(data.error || 'Unknown error');
+                }
+                uploadBtn.disabled = false;
+                uploadBtn.innerHTML = 'Choose File';
+                uploadedFilePath = data.filepath;
+                showAlert('File uploaded successfully!', 'success');
+                console.log('File selected:', file.name, file.size);
+                
+                // Show process section
+                document.getElementById('processPanel').classList.remove('hidden');
+            })
+            .catch(error => {
+                uploadBtn.disabled = false;
+                uploadBtn.innerHTML = 'Choose File';
+                showAlert('Upload failed: ' + error.message, 'danger');
+                console.error('Upload error:', error);
+            });
+        }
+
+        function startProcessing() {
+            logDebug('Starting processing', { filePath: uploadedFilePath });
+            
+            if (!uploadedFilePath) {
+                showAlert('Please upload a file first.', 'danger');
+                return;
+            }
+
+            const summaryType = document.getElementById('summaryType').value;
+            const processBtn = document.getElementById('processBtn');
+
+            processBtn.disabled = true;
+            processBtn.innerHTML = '<div class="loading"></div> Processing...';
+
+            // Ensure socket is connected
+            if (!socket || !socket.connected) {
+                logDebug('Socket not connected, reinitializing...');
+                initSocket();
+                
+                // Wait for connection before proceeding
+                const checkConnection = setInterval(() => {
+                    if (socket && socket.connected) {
+                        clearInterval(checkConnection);
+                        proceedWithProcessing();
+                    }
+                }, 500);
+                
+                // Timeout after 10 seconds
+                setTimeout(() => {
+                    clearInterval(checkConnection);
+                    if (!socket || !socket.connected) {
+                        processBtn.disabled = false;
+                        processBtn.innerHTML = 'Process';
+                        showAlert('Connection timeout. Please try again.', 'danger');
+                    }
+                }, 10000);
+                
+                return;
+            }
+
+            proceedWithProcessing();
+
+            function proceedWithProcessing() {
+                logDebug('Proceeding with processing request');
+                
+                fetch('/process', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        filepath: uploadedFilePath,
+                        summary_type: summaryType
+                    })
+                })
+                .then(response => {
+                    logDebug('Process response status', { status: response.status, statusText: response.statusText });
+                    return response.json();
+                })
+                .then(data => {
+                    logDebug('Process response received', data);
+                    
+                    if (data.success) {
+                        currentTaskId = data.task_id;
+                        logDebug('Task started', { taskId: currentTaskId });
+                        
+                        // Join task room for real-time updates with timeout
+                        const joinTimeout = setTimeout(() => {
+                            logDebug('Join room timeout');
+                            showAlert('Failed to join processing room. Updates may not appear.', 'danger');
+                        }, 5000);
+
+                        socket.emit('join_task', { task_id: currentTaskId }, function(ack) {
+                            clearTimeout(joinTimeout);
+                            logDebug('Successfully joined task room', ack);
+                            
+                            // Show progress section
+                            document.getElementById('progressSection').style.display = 'block';
+                            updateProgress(0, 'Processing started...');
+                        });
+                        
+                    } else {
+                        processBtn.disabled = false;
+                        processBtn.innerHTML = 'Process';
+                        showAlert('Failed to start processing: ' + (data.error || 'Unknown error'), 'danger');
+                    }
+                })
+                .catch(error => {
+                    logDebug('Process request failed', { error: error.message });
+                    processBtn.disabled = false;
+                    processBtn.innerHTML = 'Process';
+                    showAlert('Error: ' + error.message, 'danger');
+                    console.error('Process error:', error);
+                });
+            }
+        }
+
+        function updateProgress(progress, message) {
+            logDebug('Updating progress', { progress, message });
+            
+            const progressFill = document.getElementById('progressFill');
+            const progressText = document.getElementById('progressText');
+            const statusMessage = document.getElementById('statusMessage');
+
+            if (progress !== null && progress !== undefined) {
+                progressFill.style.width = Math.max(0, Math.min(100, progress)) + '%';
+                progressText.textContent = Math.round(progress) + '%';
+            }
+
+            if (message) {
+                statusMessage.textContent = message;
+                // Update status class based on message content
+                statusMessage.className = 'status-message';
+                if (message.toLowerCase().includes('error') || message.toLowerCase().includes('failed')) {
+                    statusMessage.classList.add('status-error');
+                } else if (message.toLowerCase().includes('complete') || message.toLowerCase().includes('success')) {
+                    statusMessage.classList.add('status-success');
+                } else {
+                    statusMessage.classList.add('status-processing');
+                }
+            }
+            
+            // Force UI update
+            progressFill.offsetHeight;
+        }
+
+        function handleProcessingComplete(data) {
+            logDebug('Handling processing complete', data);
+            
+            const processBtn = document.getElementById('processBtn');
+            const statusMessage = document.getElementById('statusMessage');
+
+            processBtn.disabled = false;
+            processBtn.innerHTML = 'Process';
+
+            if (data.status === 'completed') {
+                updateProgress(100, 'Processing completed successfully!');
+                
+                if (data.result) {
+                    currentSessionId = data.result.session_id;
+                    showResults(data.result);
+                    loadSessions(); // Refresh sessions list
+                    activateQASection(); // Enable Q&A section
+
+                    
+                    // Update current session indicator with uploaded file name
+                    const fileName = document.getElementById('fileName').textContent;
+                    if (fileName) {
+                        document.getElementById('currentDocumentName').textContent = fileName;
+                        document.getElementById('currentSessionIndicator').classList.remove('hidden');
+                    }
+
+                }
+                
+                // Leave the task room
+                if (socket && socket.connected && currentTaskId) {
+                    socket.emit('leave_task', { task_id: currentTaskId });
+                }
+                
+            } else if (data.status === 'error') {
+                updateProgress(null, data.message || 'Processing failed');
+                showAlert('Processing failed: ' + (data.message || 'Unknown error'), 'danger');
+            }
+        }
+
+        function showResults(result) {
+            logDebug('Showing results', result);
+            
+            const statsPanel = document.getElementById('statsPanel');
+            const statsGrid = document.getElementById('statsGrid');
+            const downloadBtn = document.getElementById('downloadBtn');
+
+            // Show download button if result path available
+            if (result.result_path) {
+                downloadBtn.href = '/download/' + encodeURIComponent(result.result_path);
+                downloadBtn.style.display = 'inline-block';
+            }
+
+            // Show statistics with better error handling
+            if (result.stats) {
+                console.log('Raw stats received:', result.stats);
+                logDebug('Processing stats for display', result.stats);
+                
+                const stats = result.stats;
+                
+                // Helper function to safely get stat values
+                const getStat = (category, field, defaultValue = 0) => {
+                    try {
+                        const value = stats[category] && stats[category][field];
+                        return (value !== null && value !== undefined) ? value : defaultValue;
+                    } catch (e) {
+                        console.warn(`Error accessing stats.${category}.${field}:`, e);
+                        return defaultValue;
+                    }
+                };
+
+                const formatNumber = (num) => {
+                    if (num === null || num === undefined || isNaN(num)) return 'N/A';
+                    return Number(num).toLocaleString();
+                };
+
+                const formatTime = (seconds) => {
+                    if (seconds === null || seconds === undefined || isNaN(seconds)) return 'N/A';
+                    return Math.round(Number(seconds)) + 's';
+                };
+
+                // Build stats HTML with better error handling
+                statsGrid.innerHTML = `
+                    <div class="stat-item">
+                        <div class="stat-label">Pages</div>
+                        <div class="stat-value">${formatNumber(getStat('original', 'page_count'))}</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="stat-label">Original Words</div>
+                        <div class="stat-value">${formatNumber(getStat('original', 'word_count'))}</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="stat-label">Summary Words</div>
+                        <div class="stat-value">${formatNumber(getStat('summary', 'word_count'))}</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="stat-label">Compression</div>
+                        <div class="stat-value">${calculateCompressionRatio(getStat('original', 'word_count'), getStat('summary', 'word_count'))}</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="stat-label">Time</div>
+                        <div class="stat-value">${formatTime(getStat('', 'processing_time'))}</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="stat-label">Chunks</div>
+                        <div class="stat-value">${formatNumber(result.chunks_count || 0)}</div>
+                    </div>
+                `;
+
+                console.log('Stats grid updated successfully');
+                
+            } else {
+                console.warn('No stats available in result');
+                logDebug('No stats available', result);
+                
+                statsGrid.innerHTML = `
+                    <div class="stat-item">
+                        <div class="stat-label">Status</div>
+                        <div class="stat-value">Complete</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="stat-label">Chunks</div>
+                        <div class="stat-value">${result.chunks_count || 'N/A'}</div>
+                    </div>
+                `;
+            }
+
+            // Show stats panel
+            statsPanel.classList.remove('hidden');
+        }
+
+        // Helper function to calculate compression ratio
+        function calculateCompressionRatio(originalWords, summaryWords) {
+            if (!originalWords || !summaryWords || originalWords === 0) return 'N/A';
+            const ratio = ((originalWords - summaryWords) / originalWords * 100);
+            return ratio.toFixed(1) + '%';
+        }
+
+        function activateQASection() {
+            // Hide placeholder and show active Q&A
+            document.getElementById('qaPlaceholder').style.display = 'none';
+            document.getElementById('qaActive').classList.remove('hidden');
+            document.getElementById('qaActive').style.display = 'flex';
+        }
+
+        function askQuestion() {
+            const questionInput = document.getElementById('questionInput');
+            const question = questionInput.value.trim();
+            
+            if (!question) {
+                showAlert('Please enter a question.', 'danger');
+                return;
+            }
+
+            if (!currentSessionId) {
+                showAlert('Please process a document first.', 'danger');
+                return;
+            }
+
+            const askBtn = document.getElementById('askBtn');
+            askBtn.disabled = true;
+            askBtn.innerHTML = '<div class="loading"></div>';
+
+            fetch('/qa', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    question: question,
+                    session_id: currentSessionId
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                askBtn.disabled = false;
+                askBtn.innerHTML = 'Ask';
+
+                if (data.error) {
+                    showAlert('Error: ' + data.error, 'danger');
+                } else {
+                    addQuestionToHistory(data);
+                    questionInput.value = '';
+                }
+            })
+            .catch(error => {
+                askBtn.disabled = false;
+                askBtn.innerHTML = 'Ask';
+                showAlert('Error: ' + error.message, 'danger');
+            });
+        }
+
+        function addQuestionToHistory(qaData) {
+            const qaHistory = document.getElementById('qaHistory');
+            const qaItem = document.createElement('div');
+            qaItem.className = 'qa-item';
+            
+            qaItem.innerHTML = `
+                <div class="qa-question">${qaData.question}</div>
+                <div class="qa-answer">${qaData.answer}</div>
+                <div class="qa-confidence">Confidence: ${Math.round(qaData.confidence * 100)}% | 
+                    Processing: ${qaData.processing_time?.toFixed(2)}s</div>
+            `;
+            
+            qaHistory.insertBefore(qaItem, qaHistory.firstChild);
+        }
+
+        function handleQuestionKeyPress(event) {
+            if (event.key === 'Enter') {
+                askQuestion();
+            }
+        }
+
+        function loadSessions() {
+            fetch('/sessions')
+            .then(response => response.json())
+            .then(sessions => {
+                const sessionsList = document.getElementById('sessionsList');
+                
+                if (sessions.length === 0) {
+                    sessionsList.innerHTML = '<div class="alert alert-info">No previous sessions found.</div>';
+                    return;
+                }
+
+                sessionsList.innerHTML = sessions.map(session => {
+                    const isActive = session.session_id === currentSessionId ? 'active' : '';
+                    return `
+                        <div class="session-item ${isActive}" onclick="loadSession('${session.session_id}', event)">
+                            <div class="session-name">${session.pdf_path?.split('/').pop() || 'Unknown Document'}</div>
+                            <div class="session-date">${new Date(session.created_at).toLocaleString()}</div>
+                        </div>
+                    `;
+                }).join('');
+            })
+            .catch(error => {
+                document.getElementById('sessionsList').innerHTML = 
+                    '<div class="alert alert-danger">Failed to load sessions.</div>';
+            });
+        }        
+                
+        function loadSession(sessionId, event) {
+            // Prevent default if event is provided
+            if (event) event.preventDefault();
+            
+            logDebug('Loading session', { sessionId });
+            
+            // Highlight selected session
+            document.querySelectorAll('.session-item').forEach(item => {
+                item.classList.remove('active');
+            });
+            
+            // Highlight the clicked session item
+            if (event && event.currentTarget) {
+                event.currentTarget.classList.add('active');
+            }
+            
+            showAlert('Loading session...', 'info');
+            
+            fetch(`/session/${sessionId}`)
+                .then(response => {
+                    if (!response.ok) throw new Error('Failed to load session');
+                    return response.json();
+                })
+                .then(data => {
+                    if (data.success) {
+                        currentSessionId = sessionId;
+                        showAlert('Session loaded successfully!', 'success');
+
+                        // Update current session indicator
+                        updateCurrentSessionIndicator(sessionId);
+                        
+                        // Activate Q&A section
+                        activateQASection();
+                        
+                        // Load QA history
+                        loadQAHistory(sessionId);
+                    } else {
+                        throw new Error(data.error || 'Unknown error loading session');
+                    }
+                })
+                .catch(error => {
+                    showAlert('Error loading session: ' + error.message, 'danger');
+                    console.error('Session load error:', error);
+                });
+        }
+
+        function updateCurrentSessionIndicator(sessionId) {
+            const indicator = document.getElementById('currentSessionIndicator');
+            const documentName = document.getElementById('currentDocumentName');
+            
+            // Find the session item to get the document name
+            const sessionItems = document.querySelectorAll('.session-item');
+            let docName = 'Unknown Document';
+            
+            sessionItems.forEach(item => {
+                if (item.onclick.toString().includes(sessionId)) {
+                    const nameElement = item.querySelector('.session-name');
+                    if (nameElement) {
+                        docName = nameElement.textContent;
+                    }
+                }
+            });
+            
+            documentName.textContent = docName;
+            indicator.classList.remove('hidden');
+        }
+
+        function loadQAHistory(sessionId) {
+            if (!sessionId) {
+                console.error('No session ID provided for QA history');
+                return;
+            }
+            
+            showAlert('Loading question history...', 'info');
+            
+            fetch(`/session/${sessionId}/history`)
+                .then(response => {
+                    if (!response.ok) throw new Error('Failed to load history');
+                    return response.json();
+                })
+                .then(history => {
+                    const qaHistory = document.getElementById('qaHistory');
+                    qaHistory.innerHTML = '';
+                    
+                    if (history.length === 0) {
+                        qaHistory.innerHTML = '<div class="alert alert-info">No previous questions for this session.</div>';
+                        return;
+                    }
+                    
+                    history.forEach(qa => {
+                        addQuestionToHistory(qa);
+                    });
+                })
+                .catch(error => {
+                    showAlert('Failed to load question history: ' + error.message, 'danger');
+                    console.error('QA history error:', error);
+                });
+        }
+
+        function showAlert(message, type) {
+            // Remove existing alerts
+            document.querySelectorAll('.alert').forEach(alert => {
+                if (alert.style.position === 'fixed') {
+                    alert.remove();
+                }
+            });
+
+            // Create new alert
+            const alert = document.createElement('div');
+            alert.className = `alert alert-${type}`;
+            alert.style.cssText = `
+                position: fixed;
+                top: 20px;
+                right: 20px;
+                z-index: 9999;
+                max-width: 400px;
+                box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+            `;
+            alert.textContent = message;
+
+            document.body.appendChild(alert);
+
+            // Auto remove after 5 seconds
+            setTimeout(() => {
+                alert.remove();
+            }, 5000);
+        }
+
+        function formatFileSize(bytes) {
+            if (bytes === 0) return '0 Bytes';
+            const k = 1024;
+            const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+            const i = Math.floor(Math.log(bytes) / Math.log(k));
+            return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+        }
+
+        // Initialize the application
+        document.addEventListener('DOMContentLoaded', function() {
+            initSocket();
+            setupFileUpload();
+            loadSessions();
+            
+            // Check if we have a session ID in the URL (for direct linking)
+            const urlParams = new URLSearchParams(window.location.search);
+            const sessionId = urlParams.get('session');
+            if (sessionId) {
+                loadSession(sessionId);
+            }
+        });
+
+        // Initialize the application
+        document.addEventListener('DOMContentLoaded', function() {
+            initSocket();
+            setupFileUpload();
+            loadSessions();
+        });
+    </script>
+</body>
+</html>
